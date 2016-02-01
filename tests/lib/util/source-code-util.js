@@ -17,8 +17,10 @@ var path = require("path"),
     assert = require("chai").assert,
     sinon = require("sinon"),
     sh = require("shelljs"),
-    getSourceCodeOfFiles = require("../../../lib/util/source-code-util").getSourceCodeOfFiles,
+    proxyquire = require("proxyquire"),
     SourceCode = require("../../../lib/util/source-code");
+
+proxyquire = proxyquire.noCallThru().noPreserveCache();
 
 //------------------------------------------------------------------------------
 // Tests
@@ -26,7 +28,8 @@ var path = require("path"),
 
 describe("SourceCodeUtil", function() {
 
-    var fixtureDir;
+    var fixtureDir,
+        getSourceCodeOfFiles;
 
     /**
      * Returns the path inside of the fixture directory.
@@ -45,12 +48,29 @@ describe("SourceCodeUtil", function() {
         }
     }
 
+    var log = {
+        info: sinon.spy(),
+        error: sinon.spy()
+    };
+    var requireStubs = {
+        "../logging": log
+    };
+
     // copy into clean area so as not to get "infected" by this project's .eslintrc files
     before(function() {
         fixtureDir = os.tmpdir() + "/eslint/fixtures/source-code-util";
         sh.mkdir("-p", fixtureDir);
         sh.cp("-r", "./tests/fixtures/source-code-util/.", fixtureDir);
         fixtureDir = fs.realpathSync(fixtureDir);
+    });
+
+    beforeEach(function() {
+        getSourceCodeOfFiles = proxyquire("../../../lib/util/source-code-util", requireStubs).getSourceCodeOfFiles;
+    });
+
+    afterEach(function() {
+        log.info.reset();
+        log.error.reset();
     });
 
     after(function() {
@@ -94,10 +114,12 @@ describe("SourceCodeUtil", function() {
             assert.notProperty(sourceCode, filename);
         });
 
-        it("should should not throw on files with parsing errors", function() {
+        it("should show message for files with parsing errors", function() {
             var filename = getFixturePath("parse-error.js");
-            var sourceCode = getSourceCodeOfFiles(filename);
+            var sourceCode = getSourceCodeOfFiles(filename, {cwd: fixtureDir});
             assert.isObject(sourceCode);
+            assert(log.error.called);
+            assert.include(log.error.args[0][0], "Parsing error: Unexpected token ;");
         });
 
         it("should obtain the sourceCode of a file", function() {

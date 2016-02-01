@@ -74,12 +74,12 @@ describe("configInitializer", function() {
     });
 
     beforeEach(function() {
-        process.chdir(fixtureDir);
         init = proxyquire("../../../lib/config/config-initializer", requireStubs);
     });
 
     afterEach(function() {
-        process.chdir(originalDir);
+        log.info.reset();
+        log.error.reset();
     });
 
     after(function() {
@@ -208,6 +208,7 @@ describe("configInitializer", function() {
                 var uiMock = {complete: completeSpy};
                 process.chdir(fixtureDir);
                 config = init.processAnswers(answers, uiMock);
+                process.chdir(originalDir);
             });
 
             beforeEach(function() {
